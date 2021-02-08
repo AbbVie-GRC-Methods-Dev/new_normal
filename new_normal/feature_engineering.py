@@ -68,5 +68,6 @@ def engineer_features(project_dir, use_purecn_purity):
     
     print(engineered['truth'].value_counts())
     print(engineered['filter'].value_counts())
-    
-    engineered.to_csv(os.path.join(project_dir,'engineered.csv'), index_label=False)
+    engineered_output_file = os.path.join(project_dir, 'mafs/', 'engineered.csv')
+    print(f'Saving engineered.csv to {engineered_output_file}')
+    engineered.to_csv(engineered_output_file, index_label=False)

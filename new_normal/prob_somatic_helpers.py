@@ -37,6 +37,7 @@ def multiprocess_samples(samples, params = None, max_cores = None):
                                vaf_bin_size = params['vaf_bin_size'])
         
     dfs = []
+    print(f'Running ProbSomatic using {max_cores} cores to process samples in parallel.')
     with Pool(max_cores) as p:
         dfs.extend(p.map(partial(process_sample, prob_somatic), samples.index.tolist()))
 
