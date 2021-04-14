@@ -59,4 +59,15 @@ def get_prob_somatic_mafs(project_dir, max_cores = None):
      
     # save individual mafs to prob_somatic dir
     for sample in prob_somatic_annotated['sample'].unique():
-        prob_somatic_annotated[prob_somatic_annotated['sample'] == sample].to_csv(os.path.join(prob_somatic_output_dir, sample + '.maf'), sep='\t', index_label=False)
+        #print(f'prob somatic data frame for sample {sample}')
+        sample_df =  prob_somatic_annotated[prob_somatic_annotated['sample'] == sample]
+        #print(sample_df)
+        #print(sample_df.prob_somatic.value_counts(dropna = False))
+        #print(f'dropping nas')
+        #sample_df = sample_df.dropna(subset = ['prob_somatic'])
+        #print(f'done')
+        #print(f'saving to pickle')
+        #sample_df.to_pickle('test.pkl')
+        sample_df_out = os.path.join(prob_somatic_output_dir, str(sample) + '.maf')
+        print(f'saving {sample_df_out}')
+        sample_df.to_csv(sample_df_out, sep='\t', index_label=False)

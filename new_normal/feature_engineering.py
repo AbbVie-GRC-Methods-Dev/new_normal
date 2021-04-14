@@ -52,12 +52,15 @@ def engineer_features(project_dir, use_purecn_purity):
     df.reset_index(inplace=True)
     
     # all the features we're going to keep (and maybe one-hot-encode)
-    engineered = df[['sample', 'chrom', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'gene', 't_depth', 't_maj_allele', 'window_size', 
+    engineered = df[['sample', 'chrom', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'gene', 't_depth', 't_maj_allele', 'window_size', 't_alt_freq',
                      'support', 'prob_somatic', 'mu', 'sigma', 'seg_chr', 'seg_start', 'seg_end', 'copy_ratio', 'copy_depth', 'probes', 'weight', 
                      'max_cosmic_count', 'pop_max']]
     
     engineered = engineered.merge(pd.get_dummies(df['ontology'], drop_first=True), how='inner', left_index=True, right_index=True)
     engineered['100mer_mappability'] = df['100mer_mappability']
+    # add count feature -- the number of mutations for each sample.
+    engineered['count'] = engineered.groupby('sample')['sample'].transform('count')
+
     engineered = engineered.merge(pd.get_dummies(df['trinucleotide_context'], drop_first=True), how='inner', left_index=True, right_index=True)
     engineered = engineered.merge(pd.get_dummies(df['mutation_change'], drop_first=True), how='inner', left_index=True, right_index=True)
     if use_purecn_purity:
@@ -65,6 +68,8 @@ def engineer_features(project_dir, use_purecn_purity):
         engineered = engineered.merge(purity, how='left', left_on='sample', right_on='sample')
     engineered['truth'] = engineered['filter'].apply(lambda x: 1 if x == 'PASS' else 0)
     engineered = engineered.merge(data[['split']], how='left', left_on='sample', right_index=True)
+    # drop any duplicates remaining.
+    engineered = engineered.drop_duplicates(subset = ['sample','chrom','pos','ref','alt'])
     
     print(engineered['truth'].value_counts())
     print(engineered['filter'].value_counts())
