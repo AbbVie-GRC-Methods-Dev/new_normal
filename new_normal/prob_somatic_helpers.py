@@ -14,6 +14,10 @@ from .prob_somatic import ProbSomatic
 
 pd.set_option('display.max_rows', 200)
 
+PROB_SOMATIC_HYPERPARAMS = {'info_snp_pop' : 0.001, 'info_snp_freq' : 0.95,
+                                'info_snp_depth' : 10.0, 'min_info_snp' : 20.0,
+                                'expand_copy_window_by' : 0.01, 'max_copy_window_size' : 1.0, 'vaf_bin_size' : 0.01}
+
 def process_sample(prob_somatic, sample):
     '''
     Called by multiprocess_samples to do one sample/core. 
@@ -43,17 +47,18 @@ def multiprocess_samples(samples, params = None, max_cores = None):
 
     return pd.concat(dfs)
 
-def get_prob_somatic_mafs(project_dir, max_cores = None): 
+def get_prob_somatic_mafs(project_dir, max_cores = None, output_dir = None): 
     data = pd.read_csv(os.path.join(project_dir,'data_splits.csv'))
     
     # these ProbSomatic hyperparameters are reasonably close to the optimal parameters found using random search.
     # Using these hyperparams, the resulting output works quite well as a feature in the downstream machine learning model. 
-    prob_somatic_hyperparams = {'info_snp_pop' : 0.001, 'info_snp_freq' : 0.95,
-                                'info_snp_depth' : 10.0, 'min_info_snp' : 20.0,
-                                'expand_copy_window_by' : 0.01, 'max_copy_window_size' : 1.0, 'vaf_bin_size' : 0.01}
-    
+    prob_somatic_hyperparams = PROB_SOMATIC_HYPERPARAMS
+    print(prob_somatic_hyperparams)
     prob_somatic_annotated = multiprocess_samples(data, params=prob_somatic_hyperparams, max_cores = max_cores)
-    prob_somatic_output_dir = os.path.join(project_dir, 'mafs/prob_somatic/') 
+    if output_dir is None: 
+        prob_somatic_output_dir = os.path.join(project_dir, 'mafs/prob_somatic/') 
+    else:
+        prob_somatic_output_dir = output_dir
     if not os.path.exists(prob_somatic_output_dir):
         os.mkdir(prob_somatic_output_dir)
      
@@ -61,13 +66,6 @@ def get_prob_somatic_mafs(project_dir, max_cores = None):
     for sample in prob_somatic_annotated['sample'].unique():
         #print(f'prob somatic data frame for sample {sample}')
         sample_df =  prob_somatic_annotated[prob_somatic_annotated['sample'] == sample]
-        #print(sample_df)
-        #print(sample_df.prob_somatic.value_counts(dropna = False))
-        #print(f'dropping nas')
-        #sample_df = sample_df.dropna(subset = ['prob_somatic'])
-        #print(f'done')
-        #print(f'saving to pickle')
-        #sample_df.to_pickle('test.pkl')
         sample_df_out = os.path.join(prob_somatic_output_dir, str(sample) + '.maf')
         print(f'saving {sample_df_out}')
         sample_df.to_csv(sample_df_out, sep='\t', index_label=False)
