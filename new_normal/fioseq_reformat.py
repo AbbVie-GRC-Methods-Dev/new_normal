@@ -4,7 +4,7 @@ import pandas as pd
 
 def fioseq_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', split = 'full_cohort', prefilter = False):
     """
-    Makes simple data_splits table and saves mafs without old classification data.  Optional prefiltering removes non-standard chromosomes (keeps chroms 1 thru 22 + X) and variants whose filters do not contain 'PASS'. 
+    Makes simple data_splits table and saves mafs without old classification data.  Prefiltering removes non-standard chromosomes (keeps chroms 1 thru 22 + X) and structural variants. 
     """
     # build data splits, containing the maf path, cnr path,
     row_list = []
@@ -35,7 +35,7 @@ def fioseq_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', spl
             maf.drop(columns=['info_snp', 'fioseq_prob_somatic','xgboost_class'], inplace=True)
             if prefilter:
                 maf = maf[maf['chrom'].isin(standard_chroms)]
-                maf = maf[maf['filter'].str.contains('PASS')]
+                maf = maf[maf['ontology'] != 'structural_variant']
             maf.to_csv(single_patient_output_maf_filename, index_label=False, sep='\t')
         else:
             print(single_patient_output_maf_filename + ' already exists. Skipping.')
