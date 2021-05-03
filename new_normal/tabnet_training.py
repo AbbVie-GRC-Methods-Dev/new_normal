@@ -22,11 +22,12 @@ def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4, input_fe
     if add_new_splits:
         df = load_and_merge_new_splits(engineered_df = df, fold_dir = project_dir)
                       
+    # use explicitly defined features if given.
     if input_features is not None:
         features = input_features
-    else:
+    else:  # otherwise, use the list of features to drop from the set of internal features.
         features = get_internal_features(use_purecn_purity = ('purity' in df.columns), internal_features_to_drop = internal_features_to_drop)  
-    print('The following features are being used:' )
+    print('The following features are being used for training:' )
     print(features)
     
     # shuffle variant rows.  split status will remain paired with each variant.
@@ -35,9 +36,6 @@ def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4, input_fe
     if shuffle_labels:
         # shuffle the truth column.  Should still be able to fit train, but test should be terrible.
         df.truth = np.random.permutation(df.truth.values)
-        # edit:  while tabnet can fit the tcga training data nearly perfectly (~99.9% APS),
-        # it cannot get above 37% APS on the same data with shuffled labels.  
-        # this is suggests tabnet isn't over-parametrized.
     
     X_train, y_train = split_features_and_labels(df, 'train', features)
     X_validation, y_validation = split_features_and_labels(df, 'validation', features)
@@ -83,3 +81,10 @@ def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4, input_fe
     if shuffle_labels:
         pickle_out_name = pickle_out_name.replace('.pkl', 'shuffled_labels.pkl') 
     pickle.dump(clf, open(pickle_out_name,'wb'))
+    # also want to save the network weights.  
+    # the pickled classifier is great if you're doing inference using the 
+    # same device the network was trained on. 
+    #  However, the classifier cannot be transferred across devices like 
+    # GPU-trained to CPU-evaluated.  
+    state_dict_out_name = pickle_out_name.replace('.pkl','.pth')
+    torch.save(clf.network.state_dict(), state_dict_out_name)

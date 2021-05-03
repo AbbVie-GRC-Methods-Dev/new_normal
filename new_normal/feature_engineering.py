@@ -40,13 +40,19 @@ def engineer_features(project_dir, use_purecn_purity):
     dfs = []
     idx = 0
     for patient in data.index:
-        maf = pd.read_csv(data.loc[patient]['snv'], sep='\t')
-        cnv = pd.read_csv(data.loc[patient]['cnv'], sep='\t')
-        df = merge_data(maf,cnv)
-        dfs.append(df[(df['filter'].str.contains('PASS')) & (df['ontology'].isin(['missense', 'frameshift_indel', 'inframe_indel', 'nonsense'])) &                   (df['fpfilter']=='PASS')])
-                      #((df['fpfilter'].str.contains('PASS')) | (df['fpfilter'].isnull()))])                 
-        idx += 1
-        print(patient, idx)
+        # do exception handling, because in the rare case, 
+        # after dropping SNPs from the prob somatic subroutine, 
+        # the patient won't have variants.
+        try:
+            maf = pd.read_csv(data.loc[patient]['snv'], sep='\t')
+            cnv = pd.read_csv(data.loc[patient]['cnv'], sep='\t')
+            df = merge_data(maf,cnv)
+            dfs.append(df[(df['filter'].str.contains('PASS')) & (df['ontology'].isin(['missense', 'frameshift_indel', 'inframe_indel', 'nonsense'])) &                   (df['fpfilter']=='PASS')])
+                          #((df['fpfilter'].str.contains('PASS')) | (df['fpfilter'].isnull()))])                 
+            idx += 1
+            print(patient, idx)
+        except FileNotFoundError:
+            print(f'Sample {patient} not found. Probably has no variants after prob_somatic informatic SNP filtering.  Skipping.')
     
     df = pd.concat(dfs)
     df.reset_index(inplace=True)

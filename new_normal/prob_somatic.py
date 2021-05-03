@@ -59,7 +59,7 @@ class ProbSomatic:
         
         # Get the informative snps for this copy segment
         info_snps = self.info_snps[(self.info_snps['chrom'] == chrom) & (self.info_snps['seg_start'] == seg_start)]
-        print(info_snps.shape[0])
+        #print(info_snps.shape[0])
         info_snps['prob_somatic'], info_snps['mu'], info_snps['sigma'] = 0.0, np.nan, np.nan # don't calc stats for info_snps!
         
         # Get the variants we want to classify. Note the stats initialization! If nothing else, is this messing up visualization

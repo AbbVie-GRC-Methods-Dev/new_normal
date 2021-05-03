@@ -10,7 +10,7 @@ from multiprocessing import Pool
 import pandas as pd
 import numpy as np
 
-from .prob_somatic import ProbSomatic
+from .prob_somatic import ProbSomatic, merge_somatic
 
 pd.set_option('display.max_rows', 200)
 
@@ -18,10 +18,10 @@ PROB_SOMATIC_HYPERPARAMS = {'info_snp_pop' : 0.001, 'info_snp_freq' : 0.95,
                                 'info_snp_depth' : 10.0, 'min_info_snp' : 20.0,
                                 'expand_copy_window_by' : 0.01, 'max_copy_window_size' : 1.0, 'vaf_bin_size' : 0.01}
 
-def calc_prob_somatic(row, hyperparams=None):
+def calc_prob_somatic(snv_cnv, hyperparams=None):
     
-    snv_path =  row.snv
-    cnv_path = row.cnv
+    snv_path =  snv_cnv[0]
+    cnv_path = snv_cnv[1]
     prob_somatic = ProbSomatic(merge_somatic((snv_path, cnv_path)), **hyperparams)
     prob_somatic._format_data()
     prob_somatic._calc_prob()
@@ -29,7 +29,7 @@ def calc_prob_somatic(row, hyperparams=None):
     return prob_somatic.prob_somatic
 
 
-def multiprocess_samples(data_splits, params = None, max_cores = None):
+def multiprocess_samples(data_splits, hyperparams = None, max_cores = None):
     '''
     Ships jobs to process_samples, one sample/core
     '''
@@ -37,8 +37,9 @@ def multiprocess_samples(data_splits, params = None, max_cores = None):
         
     dfs = []
     print(f'Running ProbSomatic using {max_cores} cores to process samples in parallel.')
+    snv_cnv_list = [(x.snv, x.cnv) for x in data_splits.itertuples()]
     with Pool(max_cores) as p:
-        dfs.extend(p.map(partial(calc_pro_somatic, hyperparams = hyperparams), data_splits.iterrows()))
+        dfs.extend(p.map(partial(calc_prob_somatic, hyperparams = hyperparams), snv_cnv_list))
 
     return pd.concat(dfs)
 
@@ -52,7 +53,7 @@ def get_prob_somatic_mafs(project_dir, max_cores = None, output_dir = None, hype
     else:
         prob_somatic_hyperparams = hyperparams
     print(prob_somatic_hyperparams)
-    prob_somatic_annotated = multiprocess_samples(data_splits, params=prob_somatic_hyperparams, max_cores = max_cores)
+    prob_somatic_annotated = multiprocess_samples(data_splits, hyperparams=prob_somatic_hyperparams, max_cores = max_cores)
     if output_dir is None: 
         prob_somatic_output_dir = os.path.join(project_dir, 'mafs/prob_somatic/') 
     else:

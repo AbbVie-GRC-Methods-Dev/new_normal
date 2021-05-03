@@ -111,11 +111,13 @@ def use_trained_model(project_dir, pickled_model, evaluate_performance, input_fe
                         (recommended) or by dropping from list of internal features.')
     # see if path to input data is supplied.  if not, load from relative directory. 
     if input_data is None:
+        print('Using default path to engineered input data.')
         df = load_filter_engineered_df(project_dir)
     else:
         df = load_filter_engineered_df(project_dir, input_data)
     # use new splits created in cross-validation fold?
     # if so, use the data_splits in project_dir to define the splits
+    print(f'input df has {df.shape[0]} variants.')
     if add_new_splits:
         df = load_and_merge_new_splits(engineered_df = df, fold_dir = project_dir)
                 
@@ -129,8 +131,12 @@ def use_trained_model(project_dir, pickled_model, evaluate_performance, input_fe
         features = input_features 
     else:
         # drop from list of all internal features
-        features = get_internal_features( use_purecn_purity = ('purity' in df.columns), internal_features_to_drop = features_to_drop)
-
+        features = get_internal_features( use_purecn_purity = ('purity' in df.columns), internal_features_to_drop = internal_features_to_drop)
+    features = list(features)
+    print('finished selecting features.')
+    print(f'df.columns: {df.columns}')
+    print(f'features: {features}')
+    print(f'Number of input variants to classify (before eval):  {df.shape[0]}')
     if evaluate_performance:
         performance_df = evaluate_classifier(df, classifier, features, splits, perf_by_sample)
         performance_df.to_csv(make_filename(project_dir, pickled_model, \

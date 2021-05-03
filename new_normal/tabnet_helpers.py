@@ -21,14 +21,17 @@ def load_filter_engineered_df(project_dir, input_data = None):
 
     df = pd.read_csv(engineered_csv_path, index_col = 0)                     
 
+    print(f'pre-pop-max filtering, n vars: {df.shape[0]}')
     df = df[df['pop_max']<0.01]                               
     # 
     scpra_keys = ['sample','chrom','pos','ref','alt']
+    print(f'pre-deduplication,  n vars: {df.shape[0]}')
     if all(i in df.columns for i in scpra_keys):  
         df.drop_duplicates(subset = scpra_keys, inplace = True )
         print('Deduplicated using sample, chrom, pos, ref, and alt keys')
     else:
         print('sample, chrom, pos, ref, alt missing from df columns.  Skipping deduplication.')
+    print(f'post-deduplication, n vars: {df.shape[0]}')
     #print(df.columns)
     df['sample'] = df['sample'].astype('str')
     n_samples = len(np.unique(df['sample']))
@@ -183,3 +186,15 @@ def save_global_feature_importance(fold_dir, features):
                 
     full_feature_importance = pd.concat(fi_dfs)
     full_feature_importance.to_csv(os.path.join(figures_dir, 'full_feature_importance.csv'))
+
+import importlib                                                                    
+ 
+def modify_and_import(module_name, package, modification_func):
+    spec = importlib.util.find_spec(module_name, package)
+    source = spec.loader.get_source(module_name)
+    new_source = modification_func(source)
+    module = importlib.util.module_from_spec(spec)
+    codeobj = compile(new_source, module.__spec__.origin, 'exec')
+    exec(codeobj, module.__dict__)
+    sys.modules[module_name] = module
+    return module
