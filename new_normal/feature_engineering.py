@@ -58,12 +58,22 @@ def engineer_features(project_dir, use_purecn_purity):
     df.reset_index(inplace=True)
     
     # all the features we're going to keep (and maybe one-hot-encode)
-    engineered = df[['sample', 'chrom', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'gene', 't_depth', 't_maj_allele', 'window_size', 't_alt_freq',
-                     'support', 'prob_somatic', 'mu', 'sigma', 'seg_chr', 'seg_start', 'seg_end', 'copy_ratio', 'copy_depth', 'probes', 'weight', 
-                     'max_cosmic_count', 'pop_max']]
+    # depending on the version of prob somatic used, we may or may not have the Gaussian fit parameters.
+    mu_sig_prob_somatic_params = ['mu','sigma','prob_somatic']
+
+    standard_cols = ['sample', 'chrom', 'pos', 'id', 'ref', 'alt', 'qual', 'filter', 'gene', 't_depth', 't_maj_allele', 'window_size',
+                     't_alt_freq', 'support', 'seg_chr', 'seg_start', 'seg_end', 'copy_ratio', 'copy_depth', 'probes', 'weight', 
+                     'max_cosmic_count', 'pop_max', '100mer_mappability']
+    if set(mu_sig_prob_somatic_params).issubset(set(df.columns)):
+        all_columns = standard_cols + mu_sig_prob_somatic_params 
+    # if gaussian fit parameters are not present, use binned histogram.
+    else:
+        vaf_bin_columns = [col for col in  df.columns if 'snp_vaf_bin_' in col]
+        all_columns = standard_cols + vaf_bin_columns 
+    
+    engineered = df[all_columns]
     
     engineered = engineered.merge(pd.get_dummies(df['ontology'], drop_first=True), how='inner', left_index=True, right_index=True)
-    engineered['100mer_mappability'] = df['100mer_mappability']
     # add count feature -- the number of mutations for each sample.
     engineered['count'] = engineered.groupby('sample')['sample'].transform('count')
 

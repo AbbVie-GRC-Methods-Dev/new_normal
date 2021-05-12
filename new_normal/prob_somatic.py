@@ -10,6 +10,13 @@ import scipy.stats as ss
 warnings.filterwarnings('ignore')
 
 
+
+# makes a list of column names e.g. ['snp_vaf_bin_00', 'snp_vaf_bin_01',... 
+snp_vaf_bin_columns = ['snp_vaf_bin_' + str(x).zfill(2) for x in range(0,20)]
+snp_vaf_bin_init_dict = {k : 0 for k in snp_vaf_bin_columns}
+# to be used like this for initializing new columns:
+# df = df.assign(**snp_vaf_bin_init_dict)
+
 class ProbSomatic:
     '''
     
@@ -17,16 +24,17 @@ class ProbSomatic:
     
     def __init__(self, somatic, info_snp_pop=0.025, info_snp_freq=0.95, info_snp_depth=20, 
                  min_info_snp=10, expand_copy_window_by=0.01, max_copy_window_size=2.0,
-                 vaf_bin_size=0.05):
+                 vaf_bin_size=0.05, snp_vaf_bin_mode = False):
         
         self.raw = somatic
         self.info_snp_pop = info_snp_pop # info snps have a pop_max greater than this
         self.info_snp_freq = info_snp_freq # maximmum allele frequency for heterozygous SNP.
         self.info_snp_depth = info_snp_depth # this is just a qc variable for 'info_snp'
         self.min_info_snp = min_info_snp # minimum number of informative snps to calculate prob_somatic
-        self.expand_copy_window_by = expand_copy_window_by # if not enough info snps in segment, expand copy number ratio by this ammount.  look in chromosome segments in this new window. 
+        self.expand_copy_window_by = expand_copy_window_by # if not enough info snps in segment, expand copy number ratio by this amount.  look in chromosome segments in this new window. 
         self.max_copy_window_size = max_copy_window_size # to increase info_snp count, what is the max change in copy-ratio threshold
         self.vaf_bin_size = vaf_bin_size # variant of interest VAF +/- freq, used to calculate probability from MLE-fit Gaussian. 
+        self.snp_vaf_bin_mode = snp_vaf_bin_mode
         
     def _format_data(self):
         ''' From the raw input, make an object of informative snps, 
@@ -43,7 +51,6 @@ class ProbSomatic:
         self.info_snps['info_snp'] = True
         
         # Get the variants we want to classify, making a dataframe object for those we definitely need to apply prob_somatic to (unknown)
-        # !!!AM I USING FPFILTER CORRECTLY HERE!!!
         self.variants = self.raw[(self.raw['filter'].str.contains('PASS')) & \
                                  (self.raw['ontology'].isin(['missense', 'frameshift_indel', 'inframe_indel', 'nonsense'])) & \
                                  (self.raw['fpfilter']=='PASS')]
@@ -60,17 +67,24 @@ class ProbSomatic:
         # Get the informative snps for this copy segment
         info_snps = self.info_snps[(self.info_snps['chrom'] == chrom) & (self.info_snps['seg_start'] == seg_start)]
         #print(info_snps.shape[0])
-        info_snps['prob_somatic'], info_snps['mu'], info_snps['sigma'] = 0.0, np.nan, np.nan # don't calc stats for info_snps!
+        # initialize info_snps fields.
+        if not self.snp_vaf_bin_mode:
+            info_snps['prob_somatic'], info_snps['mu'], info_snps['sigma'] = 0.0, np.nan, np.nan # don't calc stats for info_snps!
+        else:
+            info_snps = info_snps.assign(**snp_vaf_bin_init_dict)
         
         # Get the variants we want to classify. Note the stats initialization! If nothing else, is this messing up visualization
         unknown = self.variants.unknown[(self.variants.unknown['chrom'] == chrom) & (self.variants.unknown['seg_start'] == seg_start)]
         unknown['info_snp'] = False
-        unknown['prob_somatic'], unknown['mu'], unknown['sigma'] = 0.5, np.nan, np.nan # Initialize w/0.5 as to not bias xgboost with 0 or 1? 
         
         # Do all this to get the 'known' variants (those we want to classify, but are germline info_snps 
         variants = self.variants[(self.variants['chrom'] == chrom) & (self.variants['seg_start'] == seg_start)]
-        # !! Instead do 1 - t_maj_allele !! ????
-        variants['prob_somatic'], variants['mu'], variants['sigma'] = 0.0, np.nan, np.nan
+        if not self.snp_vaf_bin_mode:
+            unknown['prob_somatic'], unknown['mu'], unknown['sigma'] = 0.5, np.nan, np.nan # Initialize w/0.5 as to not bias xgboost with 0 or 1? 
+            variants['prob_somatic'], variants['mu'], variants['sigma'] = 0.0, np.nan, np.nan
+        elif self.snp_vaf_bin_mode:
+            unknown = unknown.assign(**snp_vaf_bin_init_dict)
+            variants = variants.assign(**snp_vaf_bin_init_dict)
         known = pd.concat([variants, unknown]).drop_duplicates(subset=['chrom', 'pos', 'ref', 'alt'], keep=False)
     
         window_size = 0.0
@@ -113,32 +127,45 @@ class ProbSomatic:
             
             # If there are any unknown variants left in this segment, calc prob somatic
             if unknown.shape[0]:
-                # if enough info snps, calculate prob somatic the proper way
-                if info_snps.shape[0] >= self.min_info_snp: 
-                
-                    # Get shape parameters from a maximum liklihood estimate (MLE)
-                    mu, sigma = ss.norm.fit(info_snps.t_maj_allele)
-
-                    # Compute probability if unknown VAFs belonging to a Gaussian defined by the MLE-derived shape paramters
-                    prob_germ = ss.norm(mu, sigma).cdf(unknown.t_maj_allele + self.vaf_bin_size) - \
-                        ss.norm(mu, sigma).cdf(unknown.t_maj_allele - self.vaf_bin_size)
+                # DM's method, calculating mu and sigma of gaussian, using gaussian to get prob.
+                if not self.snp_vaf_bin_mode:
+                    # if enough info snps, calculate prob somatic the proper way
+                    if info_snps.shape[0] >= self.min_info_snp: 
                     
-                    # Convert the above-calulated probability of being germline to probability of being somatic. 
-                    unknown['prob_somatic'] = 1 - abs(prob_germ) 
-                    # Store these shape parameters for training machine-learning models
-                    unknown['mu'] = mu
-                    unknown['sigma'] = sigma
-                # if unknown variant exist in this segment, but not enough info snps were found, we should still output the variant.
-                # this is an edge case bug fix.
-                else:  
-                    unknown['prob_somatic'], unknown['mu'], unknown['sigma'] = 0.5, 0.5, 1 
-                
-                # append unknown variants if there were any.
+                        # Get shape parameters from a maximum liklihood estimate (MLE)
+                        mu, sigma = ss.norm.fit(info_snps.t_maj_allele)
+
+                        # Compute probability if unknown VAFs belonging to a Gaussian defined by the MLE-derived shape parameters
+                        prob_germ = ss.norm(mu, sigma).cdf(unknown.t_maj_allele + self.vaf_bin_size) - \
+                            ss.norm(mu, sigma).cdf(unknown.t_maj_allele - self.vaf_bin_size)
+                        
+                        # Convert the above-calulated probability of being germline to probability of being somatic. 
+                        unknown['prob_somatic'] = 1 - abs(prob_germ) 
+                        # Store these shape parameters for training machine-learning models
+                        unknown['mu'] = mu
+                        unknown['sigma'] = sigma
+                    # if unknown variant exist in this segment, but not enough info snps were found, we should still output the variant.
+                    # we want queried mutations to be kept even if there aren't enough neighboring info snps
+                    else:  
+                        unknown['prob_somatic'], unknown['mu'], unknown['sigma'] = 0.5, 0.5, 1 
+                        
+                elif self.snp_vaf_bin_mode: # use snp_vaf_bin_mode
+                    # we want to divide the interval [0, 1] (possible VAF values) into n bins.
+                    bin_width = 1./len(snp_vaf_bin_columns)
+                    # iterate over the n bin column names
+                    for bin_i, vaf_bin_col in enumerate(snp_vaf_bin_columns):
+                        # define the vaf bin.
+                        lower_bound, upper_bound = bin_i*bin_width, (bin_i + 1)*bin_width  
+                        # record the number of info snps in this vaf bin.
+                        unknown[vaf_bin_col] = info_snps[(info_snps.t_maj_allele > lower_bound) & (info_snps.t_maj_allele < upper_bound)].shape[0] 
+                # append unknown variants with new prob somatic or bin features.
                 dfs.append(unknown)
         
         self.prob_somatic = pd.concat(dfs)
-        self.prob_somatic.loc[self.prob_somatic['info_snp'], 'prob_somatic'] = 0.0 # !!! I DONT KNOW HOW THESE ARE SLIPPING THRU !!!
-        self.prob_somatic.loc[self.prob_somatic['t_maj_allele'] > self.info_snp_freq, 'prob_somatic'] = 0.0
+        # hmmm, i'm unsure if I need to handle this with snp_vaf_bin_mode.
+        if not self.snp_vaf_bin_mode:
+            self.prob_somatic.loc[self.prob_somatic['info_snp'], 'prob_somatic'] = 0.0 # !!! I DONT KNOW HOW THESE ARE SLIPPING THRU !!!
+            self.prob_somatic.loc[self.prob_somatic['t_maj_allele'] > self.info_snp_freq, 'prob_somatic'] = 0.0
 
 
 def merge_somatic(paths):
