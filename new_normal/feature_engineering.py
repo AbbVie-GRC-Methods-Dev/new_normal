@@ -32,7 +32,7 @@ def merge_data(snv, cnv):
 
     return df
 
-def engineer_features(project_dir, use_purecn_purity):
+def engineer_features(project_dir, use_purecn_purity = False):
     data = pd.read_csv(os.path.join(project_dir,'data_splits.csv'))
     data['snv'] = data['snv'].str.replace('formatted/', 'prob_somatic/')
     data.set_index('patient', inplace=True)

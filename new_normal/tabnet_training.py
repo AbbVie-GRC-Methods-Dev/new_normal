@@ -8,7 +8,7 @@ from .tabnet_helpers import load_filter_engineered_df, get_internal_features, sp
 import torch
 import pickle
 
-def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4, input_features = None, internal_features_to_drop = None, shuffle_labels = False, input_data = None, add_new_splits = False):
+def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4,n_steps = 4, input_features = None, internal_features_to_drop = None, shuffle_labels = False, input_data = None, add_new_splits = False):
     """
     Shuffle the  labels?  This is a negative control mode used to make sure there's no information leak between train and test.
     """
@@ -49,7 +49,8 @@ def train_tabnet(project_dir, save_model_name_as, lambda_sparse = 1e-4, input_fe
     
     clf = TabNetClassifier(
         #n_d=64, n_a=64, n_steps=5,
-        n_d=24, n_a=24, n_steps=4,
+        #n_d=24, n_a=24, n_steps=4,
+        n_d=24, n_a=24, n_steps=n_steps,
         #n_d=32, n_a=32, n_steps=10,
         device_name = 'auto',
         #device_name = 'cpu',

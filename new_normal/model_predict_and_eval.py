@@ -165,7 +165,9 @@ def use_trained_model(project_dir, pickled_model, evaluate_performance, input_fe
     df['tabnet_proba_1'] = y_proba[:,1]
 
     # uncomment if you need to generate the full matrix including unused features.
-    df.to_csv(make_filename(project_dir, pickled_model, '_predictions_all_features.csv'))
+    output_predictions_path = make_filename(project_dir, pickled_model, '_predictions_all_features.csv')
+    print(output_predictions_path)
+    df.to_csv(output_predictions_path)
     # drop superfluous unused features from dataframe.
     #if input_features is not None:
          # no good way to do this.  skipping!
