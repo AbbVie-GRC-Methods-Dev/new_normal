@@ -14,6 +14,7 @@ def fioseq_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', spl
         row_list = []
         # e.g. project_dir/mutation/pt1/pt1.maf
         for patient_maf in glob.glob(project_dir + 'mutation/*/*.maf'):
+            print(patient_maf)
             patient_id = os.path.basename(patient_maf).split('.')[0]
             cnv_file = os.path.join(project_dir, 'cnv', patient_id, patient_id + "_tumor.cns" ) 
             row = {'patient' : patient_id, 'kit' :  kit, 'indication' : indication, 'split' : split, 'cnv' : cnv_file, 'input_maf' : patient_maf}

@@ -117,8 +117,7 @@ def remove_tmb_outliers(df, min_total_mutations, max_total_mutations):
     print(f'Removed {n_removed} total patients')
     return pd.concat(passing_dfs)
 
-def add_truth_labels_from_mn(path_engineered_maf_tumor_only, globbed_list_of_mn_maf_paths, overwrite = False):
-    output_file = 'mafs/engineered_plus_labels.csv'
+def add_truth_labels_from_mn(path_engineered_maf_tumor_only, globbed_list_of_mn_maf_paths, overwrite = False, output_file = 'mafs/engineereed_plus_labels.csv'):
     if os.path.exists(output_file) and not overwrite:
         raise FileExistsError('It looks like labels have already been added to the maf.  To overwrite, please set overwrite = True when calling add_truth_labels_from_mn.' )
     else:

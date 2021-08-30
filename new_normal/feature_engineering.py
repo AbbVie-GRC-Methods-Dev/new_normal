@@ -47,12 +47,12 @@ def engineer_features(project_dir, use_purecn_purity = False):
             maf = pd.read_csv(data.loc[patient]['snv'], sep='\t')
             cnv = pd.read_csv(data.loc[patient]['cnv'], sep='\t')
             df = merge_data(maf,cnv)
-            dfs.append(df[(df['filter'].str.contains('PASS')) & (df['ontology'].isin(['missense', 'frameshift_indel', 'inframe_indel', 'nonsense'])) &                   (df['fpfilter']=='PASS')])
+            dfs.append(df[(df['filter'].str.contains('PASS')) & (df['ontology'].isin(['missense', 'frameshift_indel', 'inframe_indel', 'nonsense'])) &(df['fpfilter']=='PASS')])
                           #((df['fpfilter'].str.contains('PASS')) | (df['fpfilter'].isnull()))])                 
             idx += 1
             print(patient, idx)
         except FileNotFoundError:
-            print(f'Sample {patient} not found. Probably has no variants after prob_somatic informatic SNP filtering.  Skipping.')
+            print(f'Sample {patient} not found. It probably has no variants after prob_somatic informatic SNP filtering.  Skipping.')
     
     df = pd.concat(dfs)
     df.reset_index(inplace=True)

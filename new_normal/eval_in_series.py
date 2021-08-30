@@ -53,14 +53,17 @@ def benchmark(trained_model, input_features, truth_labels = None):
            evaluate_accuracy = False
            engineered_input = 'mafs/engineered.csv'
        print('Applying new_normal')
-       use_trained_model(os.getcwd(), pickled_model = trained_model,
+       try:
+           use_trained_model(os.getcwd(), pickled_model = trained_model,
                          evaluate_performance = evaluate_accuracy,
                          input_features = tuple(input_features),
                          input_data = engineered_input,
                          splits = None, perf_by_sample = False)
         
-       elapsed = time.time() - start
-       print(f'{elapsed} seconds elapsed for patient sample {str_s}.')
+           elapsed = time.time() - start
+           print(f'{elapsed} seconds elapsed for patient sample {str_s}.')
+       except ValueError:
+           print('features missing for this patient. skipping.')
        os.chdir('../..')
 
 #calculate features based on info_snps:
