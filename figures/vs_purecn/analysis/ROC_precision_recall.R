@@ -50,7 +50,7 @@ auc_roc <- function(preds, actuals, returnDT=FALSE){
   if(returnDT) return(dt[]) else return(tail(dt$CumulativeArea, 1))
 }
 
-full.venn.vars <- fread('pure_tabnet_merge.csv')
+ptm.tcga <- fread('../tcga/results/pure_tabnet_merge.csv')
 
 data.splits <- fread('../../tmb/data_splits_210_with_tmb41.csv')
 
@@ -70,9 +70,9 @@ get.tpr.fpr <- function(dt, percent, prob.column = "tabnet_proba_1"){
   return(list(tpr,fpr, precision))
 } 
 
-get.tpr.fpr(full.venn.vars, 0.95, prob.column = 'tabnet_proba_1')
-get.tpr.fpr(full.venn.vars, 0.95)
-get.tpr.fpr(full.venn.vars, 0.95, prob.column = 'POSTERIOR.SOMATIC')
+get.tpr.fpr(ptm.tcga, 0.95, prob.column = 'tabnet_proba_1')
+get.tpr.fpr(ptm.tcga, 0.95)
+get.tpr.fpr(ptm.tcga, 0.95, prob.column = 'POSTERIOR.SOMATIC')
 
 
 # takes a subset of the full venn merge table
@@ -99,19 +99,19 @@ build.curve.dt <- function(merged.dt, n_points = 100){
   return(final)
 }
 
-roc.dt <- build.curve.dt(full.venn.vars, 10)
+roc.dt <- build.curve.dt(ptm.tcga, 10)
 
-roc.dt <- build.curve.dt(full.venn.vars, 100)
+roc.dt <- build.curve.dt(ptm.tcga, 100)
 
 # see if it's working
 ggplot(roc.dt, aes(x = fpr, y = tpr)) + geom_point(aes(color = caller))
 ggplot(roc.dt, aes(x = tpr, y = precision)) + geom_point(aes(color = caller))
 
-pfm.train <- full.venn.vars[sample %in% data.splits[split == 'Training set']$patient]
-pfm.val <- full.venn.vars[sample %in% data.splits[split == 'Validation set']$patient]
-pfm.test <- full.venn.vars[sample %in% data.splits[split == 'Test set']$patient]
+ptm.train <- ptm.tcga[sample %in% data.splits[split == 'Training set']$patient]
+ptm.val <- ptm.tcga[sample %in% data.splits[split == 'Validation set']$patient]
+ptm.test <- ptm.tcga[sample %in% data.splits[split == 'Test set']$patient]
 
-pfm.hugo <- fread('../hugo/pure_tabnet_merge.csv')
+ptm.hugo <- fread('../hugo/results/pure_tabnet_merge.csv')
 
 theme.figure <- theme_bw() +
   theme(axis.line = element_line(colour = "black"),
@@ -120,13 +120,13 @@ theme.figure <- theme_bw() +
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-roc.dt.train <- build.curve.dt(pfm.train, 500)
-roc.dt.train.indels <- build.curve.dt(pfm.train[nchar(ref) != nchar(alt)], 500)
-roc.dt.train.snvs <- build.curve.dt(pfm.train[nchar(ref) == nchar(alt)], 500)
+roc.dt.train <- build.curve.dt(ptm.train, 500)
+roc.dt.train.indels <- build.curve.dt(ptm.train[nchar(ref) != nchar(alt)], 500)
+roc.dt.train.snvs <- build.curve.dt(ptm.train[nchar(ref) == nchar(alt)], 500)
 
-roc.dt.val <- build.curve.dt(pfm.val, 500)
+roc.dt.val <- build.curve.dt(ptm.val, 500)
 
-roc.dt.test <- build.curve.dt(pfm.test, 500)
+roc.dt.test <- build.curve.dt(ptm.test, 500)
 
 
 # train PR curve
@@ -226,9 +226,9 @@ plot.pr <- function(dt, ymin = 0.4){
 
 plot.roc(roc.dt)
 
-roc(pfm.ho$truth, pfm.ho$tabnet_proba_1)
+roc(ptm.ho$truth, ptm.ho$tabnet_proba_1)
 # auc tabnet:  99.8
-roc(pfm.ho$truth, pfm.ho$POSTERIOR.SOMATIC)
+roc(ptm.ho$truth, ptm.ho$POSTERIOR.SOMATIC)
 # auc purecn:  86.36
 
 
@@ -236,10 +236,10 @@ plot.pr(roc.dt)
 
 # # with outliers removed 
 
-pfm.no.outliers <- pfm.ho[sample %in% data.splits[actual.tmb <= 12]$V1]
-length(unique(pfm.no.outliers$sample))
+ptm.no.outliers <- ptm.ho[sample %in% data.splits[actual.tmb <= 12]$V1]
+length(unique(ptm.no.outliers$sample))
 
-normal.tmb.roc.dt <- build.curve.dt(pfm.no.outliers, 100)
+normal.tmb.roc.dt <- build.curve.dt(ptm.no.outliers, 100)
 
 plot.pr(normal.tmb.roc.dt)
 # save this
@@ -248,9 +248,9 @@ plot.roc(normal.tmb.roc.dt)
 # save this
 
 
-roc(pfm.no.outliers$truth, pfm.no.outliers$tabnet_proba_1)
+roc(ptm.no.outliers$truth, ptm.no.outliers$tabnet_proba_1)
 # auc tabnet:  99.5
-roc(pfm.no.outliers$truth, pfm.no.outliers$POSTERIOR.SOMATIC)
+roc(ptm.no.outliers$truth, ptm.no.outliers$POSTERIOR.SOMATIC)
 # auc purecn:  92.8
 
 
@@ -295,42 +295,42 @@ get.perf <- function(dt, percent, prob.column = "tabnet_proba_1", algo = "", dat
 }
 
 # SNVS and INDELS
-pfm.train.snvs <- pfm.train[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
-pfm.train.indels <- pfm.train[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
-pfm.val.snvs <- pfm.val[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
-pfm.val.indels <- pfm.val[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
-pfm.test.snvs <- pfm.test[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
-pfm.test.indels <- pfm.test[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
-pfm.hugo.snvs <- pfm.hugo[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
-pfm.hugo.indels <- pfm.hugo[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
+ptm.train.snvs <- ptm.train[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
+ptm.train.indels <- ptm.train[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
+ptm.val.snvs <- ptm.val[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
+ptm.val.indels <- ptm.val[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
+ptm.test.snvs <- ptm.test[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
+ptm.test.indels <- ptm.test[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
+ptm.hugo.snvs <- ptm.hugo[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(ALT)))]
+ptm.hugo.indels <- ptm.hugo[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
 
 # TABNET, train, val, hugo
-o.t.tr <- get.perf(pfm.train, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Overall')
-s.t.tr <- get.perf(pfm.train.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'SNVs')
-i.t.tr <- get.perf(pfm.train.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Indels')
-o.t.v <- get.perf(pfm.val, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Overall')
-s.t.v <- get.perf(pfm.val.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'SNVs')
-i.t.v <- get.perf(pfm.val.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Indels')
-o.t.t <- get.perf(pfm.test, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Overall')
-s.t.t <- get.perf(pfm.test.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'SNVs')
-i.t.t <- get.perf(pfm.test.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Indels')
-o.t.h <- get.perf(pfm.hugo, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Overall')
-s.t.h <- get.perf(pfm.hugo.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'SNVs')
-i.t.h <- get.perf(pfm.hugo.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Indels')
+o.t.tr <- get.perf(ptm.train, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Overall')
+s.t.tr <- get.perf(ptm.train.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'SNVs')
+i.t.tr <- get.perf(ptm.train.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Indels')
+o.t.v <- get.perf(ptm.val, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Overall')
+s.t.v <- get.perf(ptm.val.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'SNVs')
+i.t.v <- get.perf(ptm.val.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Indels')
+o.t.t <- get.perf(ptm.test, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Overall')
+s.t.t <- get.perf(ptm.test.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'SNVs')
+i.t.t <- get.perf(ptm.test.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Indels')
+o.t.h <- get.perf(ptm.hugo, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Overall')
+s.t.h <- get.perf(ptm.hugo.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'SNVs')
+i.t.h <- get.perf(ptm.hugo.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Indels')
 
 # PURECN, train, val, hugo, using optiimal thresholds from training set.
-o.p.tr <- get.perf(pfm.train, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'Overall')
-s.p.tr <- get.perf(pfm.train.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'SNVs')
-i.p.tr <- get.perf(pfm.train.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'Indels')
-o.p.v <- get.perf(pfm.val, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Overall')
-s.p.v <- get.perf(pfm.val.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'SNVs')
-i.p.v <- get.perf(pfm.val.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Indels')
-o.p.t <- get.perf(pfm.test, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Overall')
-s.p.t <- get.perf(pfm.test.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'SNVs')
-i.p.t <- get.perf(pfm.test.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Indels')
-o.p.h <- get.perf(pfm.hugo, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Overall')
-s.p.h <- get.perf(pfm.hugo.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'SNVs')
-i.p.h <- get.perf(pfm.hugo.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Indels')
+o.p.tr <- get.perf(ptm.train, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'Overall')
+s.p.tr <- get.perf(ptm.train.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'SNVs')
+i.p.tr <- get.perf(ptm.train.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Training set', v.cat = 'Indels')
+o.p.v <- get.perf(ptm.val, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Overall')
+s.p.v <- get.perf(ptm.val.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'SNVs')
+i.p.v <- get.perf(ptm.val.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Validation set - COAD DLBC TGCT', v.cat = 'Indels')
+o.p.t <- get.perf(ptm.test, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Overall')
+s.p.t <- get.perf(ptm.test.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'SNVs')
+i.p.t <- get.perf(ptm.test.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - BRCA SARC UCEC', v.cat = 'Indels')
+o.p.h <- get.perf(ptm.hugo, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Overall')
+s.p.h <- get.perf(ptm.hugo.snvs, 0.005, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'SNVs')
+i.p.h <- get.perf(ptm.hugo.indels, 0.014, prob.column = 'POSTERIOR.SOMATIC', algo = 'PureCN', dataset = 'Blind test set - metastatic melanoma', v.cat = 'Indels')
 
 final.perf.dt <- rbindlist(list(o.t.tr,s.t.tr,i.t.tr,o.t.v, s.t.v, i.t.v, o.t.t, s.t.t, i.t.t, o.t.h, s.t.h, i.t.h, o.p.tr,s.p.tr, i.p.tr, o.p.v, s.p.v, i.p.v, o.p.t, s.p.t, i.p.t, o.p.h, s.p.h, i.p.h))
 fwrite(final.perf.dt, file = 'final.accuracy.performance.csv')
