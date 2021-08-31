@@ -52,7 +52,7 @@ auc_roc <- function(preds, actuals, returnDT=FALSE){
 
 ptm.tcga <- fread('../tcga/results/pure_tabnet_merge.csv')
 
-data.splits <- fread('../../tmb/data_splits_210_with_tmb41.csv')
+data.splits <- fread('../../tmb/results/data_splits_210_with_tmb41.csv')
 
 
 # for ROC or precision recall curve
