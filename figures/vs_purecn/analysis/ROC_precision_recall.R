@@ -1,6 +1,7 @@
 library(data.table)
 library(ggplot2)
 library(MLmetrics)
+library(ROCR)
 
 
 auc_roc <- function(preds, actuals, returnDT=FALSE){
@@ -52,7 +53,7 @@ auc_roc <- function(preds, actuals, returnDT=FALSE){
 
 ptm.tcga <- fread('../tcga/results/pure_tabnet_merge.csv')
 
-data.splits <- fread('../../tmb/data_splits_210_with_tmb41.csv')
+data.splits <- fread('../../tmb/results/data_splits_210_with_tmb41.csv')
 
 
 # for ROC or precision recall curve
@@ -305,6 +306,15 @@ ptm.hugo.snvs <- ptm.hugo[(nchar(ref) == nchar(alt)) | ((nchar(REF)) == (nchar(A
 ptm.hugo.indels <- ptm.hugo[(nchar(ref) != nchar(alt)) | ((nchar(REF)) != (nchar(ALT)))]
 
 # TABNET, train, val, hugo
+test.rocr <- function(dt, percent, prob.column = "tabnet_proba_1", algo = "", dataset = "", v.cat = ""){
+  ml.auc <- MLmetrics::AUC(get(prob.column, dt[!is.na(get(prob.column)) & !is.na(truth)]), dt[!is.na(get(prob.column)) & !is.na(truth)]$truth)
+  auc <- auc_roc(get(prob.column, dt[!is.na(get(prob.column)) & !is.na(truth)]), dt[!is.na(get(prob.column)) & !is.na(truth)]$truth)
+  ml.prauc <- MLmetrics::PRAUC(get(prob.column, dt[!is.na(get(prob.column)) & !is.na(truth)]), dt[!is.na(get(prob.column)) & !is.na(truth)]$truth)
+  return(ml.auc)
+}
+
+test.rocr(ptm.train, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Overall')
+
 o.t.tr <- get.perf(ptm.train, 0.5, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Overall')
 s.t.tr <- get.perf(ptm.train.snvs, 0.508, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'SNVs')
 i.t.tr <- get.perf(ptm.train.indels, 0.1368, prob.column = 'tabnet_proba_1', algo = 'TabNet', dataset = 'Training set', v.cat = 'Indels')
