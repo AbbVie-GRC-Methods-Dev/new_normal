@@ -20,7 +20,6 @@ paper_trained_model = paper_tcga_training_dir + 'tabnet_trained_tcga_v3.pkl'
  
 
 def tabnet_predict(fio_dir, kit_name, indication_name, \
-                       tcga_training_dir = paper_tcga_training_dir,\
                        prob_somatic_hyperparams = prob_somatic_hyperparams,\
                        tabnet_features = vaf_bin_mode_features,\
                        trained_model = paper_trained_model): 
@@ -30,7 +29,7 @@ def tabnet_predict(fio_dir, kit_name, indication_name, \
     kit_name does not determine PoN or anything, 
     it's just a name that goes in datasplits.   Same with indication.
     All CNV must be in the same fioSeq input folder as mutation dir.
-    Combintions of the optional arguments have not been tested and may not work.
+    Combinations of the optional arguments have not been tested and may not work.
     """
 
     print('Building datasplits and dropping alt chroms and structural variants from tumor-only MAFs.')
