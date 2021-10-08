@@ -1,7 +1,7 @@
 import os
 import time
 import pandas as pd
-from .fioseq_reformat import fioseq_to_ml_input
+from .gather_input_data import wes_pipeline_to_ml_input
 from .default_features import prob_somatic_hyperparams 
 from .prob_somatic_helpers import get_prob_somatic_mafs
 from .feature_engineering import engineer_features 
@@ -30,7 +30,7 @@ def benchmark(trained_model, input_features, truth_labels = None):
        sub_df.to_csv('data_splits.csv')
 
        print(f'Formatting input.')
-       fioseq_to_ml_input(sample_outdir, kit = 'unknown', \
+       wes_pipeline_to_ml_input(sample_outdir, kit = 'unknown', \
                           indication = 'unknown', 
                           split = 'full_cohort', 
                           prefilter = True, 

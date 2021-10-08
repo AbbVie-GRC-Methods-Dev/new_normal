@@ -5,20 +5,36 @@ import pandas as pd
 # for the optional standard chromosome prefiltering step
 standard_chroms = ['chr' + str(x) for x in list(range(1,23)) + ['X'] ]
 
-def fioseq_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', split = 'full_cohort', prefilter = False, build_splits = True):
+def wes_pipeline_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', split = 'full_cohort', prefilter = False, build_splits = True, input_pipeline = 'fioseq'):
     """
     Makes simple data_splits table and saves mafs without old classification data.  Prefiltering removes non-standard chromosomes (keeps chroms 1 thru 22 + X) and structural variants. 
     """
     if build_splits:
+        assert input_pipeline in ['fioseq','wes_cwl']
         # build data splits, containing the maf path, cnr path,
         row_list = []
         # e.g. project_dir/mutation/pt1/pt1.maf
-        for patient_maf in glob.glob(project_dir + 'mutation/*/*.maf'):
-            print(patient_maf)
-            patient_id = os.path.basename(patient_maf).split('.')[0]
-            cnv_file = os.path.join(project_dir, 'cnv', patient_id, patient_id + "_tumor.cns" ) 
-            row = {'patient' : patient_id, 'kit' :  kit, 'indication' : indication, 'split' : split, 'cnv' : cnv_file, 'input_maf' : patient_maf}
-            row_list.append(row)
+        if input_pipeline == 'fioseq':
+            for patient_maf in glob.glob(project_dir + 'mutation/*/*.maf'):
+                print(patient_maf)
+                patient_id = os.path.basename(patient_maf).split('.')[0]
+                print(f'patient id:  {patient_id}')
+                if '_tumor' in patient_id:
+                    cnv_file = os.path.join(project_dir, 'cnv', patient_id, patient_id + ".cns" ) 
+                else: 
+                    cnv_file = os.path.join(project_dir, 'cnv', patient_id, patient_id + "_tumor.cns" ) 
+                row = {'patient' : patient_id, 'kit' :  kit, 'indication' : indication, 'split' : split, 'cnv' : cnv_file, 'input_maf' : patient_maf}
+                row_list.append(row)
+
+        elif input_pipeline == 'wes_cwl':
+            for patient_maf in glob.glob(project_dir + '*.maf'):
+                print(patient_maf)
+                patient_id = os.path.basename(patient_maf).split('.')[0]
+                print(f'patient id:  {patient_id}')
+                # eg M16-298_2_86201.dedup.cns
+                cnv_file = os.path.join(project_dir, patient_id + ".dedup.cns" ) 
+                row = {'patient' : patient_id, 'kit' :  kit, 'indication' : indication, 'split' : split, 'cnv' : cnv_file, 'input_maf' : patient_maf}
+                row_list.append(row)
         
         data_splits_ = pd.DataFrame(row_list)
         data_splits_.to_csv('data_splits_.csv')
@@ -50,3 +66,5 @@ def fioseq_to_ml_input(project_dir, kit = 'unknown', indication = 'unknown', spl
     # delete the intermediate file.
     if os.path.exists('data_splits_.csv'):
         os.remove('data_splits_.csv')
+
+#def globbed_maf_cns_to_ml_input(to_mafs, to_cns, kit  = kit_name, indication = indication_name, prefilter = True)
